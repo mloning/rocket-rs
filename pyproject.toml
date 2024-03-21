@@ -1,0 +1,23 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[tool.poetry]
+name = "rocket"
+version = "0.1.0"
+description = "Rust implementation of ROCKET time-series transform with Python bindings"
+authors = ["mloning"]
+readme = "README.md"
+repository = "https://github.com/mloning/rocket-rs/"
+packages = [{ "include" = "rocket", "from" = "py/src/" }]  # Python source code path
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "py/src/"  # Python source code path
+
+[tool.poetry.dependencies]
+python = "3.11.8"
+
+[tool.poetry.group.dev.dependencies]
+maturin = "^1.5.1"
+
