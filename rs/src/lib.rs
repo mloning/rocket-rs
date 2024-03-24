@@ -1,16 +1,22 @@
+use ndarray::prelude::*;
+use numpy::{IntoPyArray, PyArray3, PyReadonlyArray3};
 use pyo3::prelude::*;
 
 /// ROCKET Python module implemented in Rust
 #[pymodule]
 fn rocket_rs(_py: Python, module: &PyModule) -> PyResult<()> {
-    // export Python functions
-    module.add_function(wrap_pyfunction!(say_hi, module)?)?;
+    #[pyfn(module)]
+    #[pyo3(name = "transform")]
+    fn transform_py<'py>(py: Python<'py>, x: PyReadonlyArray3<'py, f64>) -> &'py PyArray3<f64> {
+        let z = transform(x.as_array());
+        z.into_pyarray(py)
+    }
 
     Ok(())
 }
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn say_hi(name: &str) -> PyResult<String> {
-    Ok(format!("Hello {}!", name))
+/// Rust implementation of ROCKET transform
+fn transform(x: ArrayView3<f64>) -> Array3<f64> {
+    println!("Array: {:?}", x);
+    x.clone().to_owned()
 }

@@ -10,4 +10,6 @@ path = "rs/src/lib.rs"  # Rust source code path
 crate-type = ["cdylib"]
 
 [dependencies]
+ndarray = "0.15.6"
+numpy = "0.20.0"
 pyo3 = "0.20.0"
