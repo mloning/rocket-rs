@@ -21,16 +21,16 @@ z = transform(x)
 
 ## Development
 
-To build the Rust package, run:
+To build the Rust and Python package, run:
 
 ```bash
-maturin develop
-
+make build
 ```
-To install the Python package, run:
+
+To run the unit tests, run:
 
 ```bash
-poetry install
+make test
 ```
 
 ## Notes
