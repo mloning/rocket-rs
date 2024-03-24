@@ -20,6 +20,11 @@ def test_rocket_transform():
     _check_array(z, ndim=3)
     np.testing.assert_array_equal(x, z)
 
+    # from aeon.transformations.collection.convolution_based import Rocket
+    # t = Rocket(num_kernels=500, n_jobs=-1)
+    # y = t.fit_transform(x)
+    # breakpoint()
+
 
 if __name__ == "__main__":
     test_rocket_transform()
