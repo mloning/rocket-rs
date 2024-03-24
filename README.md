@@ -1,11 +1,8 @@
 # Rust implementation of ROCKET time-series transform with Python bindings
 
-This repo implements the [ROCKET] time-series transform in Rust with Python bindings.
-
-ROCKET is originally implemented in Python, using [Numba] for performance.
+This repo implements the [ROCKET] time-series transform in Rust with Python bindings. Originally, ROCKET is implemented in Python.
 
 [ROCKET]: https://github.com/angus924/rocket
-[Numba]: https://numba.pydata.org/
 
 ## Usage
 
@@ -19,7 +16,7 @@ x, _ = load_arrow_head(split="train")
 z = transform(x)
 ```
 
-[array-head dataset]: https://timeseriesclassification.com/description.php?Dataset=ArrowHead
+[arrow-head dataset]: https://timeseriesclassification.com/description.php?Dataset=ArrowHead
 [aeon]: https://github.com/aeon-toolkit/aeon
 
 ## Development
