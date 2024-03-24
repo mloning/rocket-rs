@@ -16,7 +16,7 @@ def test_rocket_transform():
     """Test ROCKET transform."""
     x, _ = load_arrow_head(split="train")
     _check_array(x, ndim=3)
-    z = transform(x)
+    z = transform(x, n_kernels=10)
     _check_array(z, ndim=3)
     np.testing.assert_array_equal(x, z)
 

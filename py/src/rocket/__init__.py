@@ -1,5 +1,5 @@
 import numpy as np
-from rocket_rs import transform as _transform
+from rocket_rs import transform as _transform_rs
 
 
 def transform(x: np.ndarray, n_kernels: int = 10_000) -> np.ndarray:
@@ -31,4 +31,4 @@ def transform(x: np.ndarray, n_kernels: int = 10_000) -> np.ndarray:
     assert n_kernels > 0
 
     # apply transform
-    return _transform(x=x, n_kernels=n_kernels)
+    return _transform_rs(x=x, n_kernels=n_kernels)
