@@ -16,9 +16,10 @@ def test_rocket_transform():
     """Test ROCKET transform."""
     x, _ = load_arrow_head(split="train")
     _check_array(x, ndim=3)
-    z = transform(x, n_kernels=10)
+    n_kernels = 10_000
+    z = transform(x, n_kernels=n_kernels)
     _check_array(z, ndim=3)
-    np.testing.assert_array_equal(x, z)
+    assert z.shape == (x.shape[0], n_kernels, 2)
 
     # from aeon.transformations.collection.convolution_based import Rocket
     # t = Rocket(num_kernels=500, n_jobs=-1)

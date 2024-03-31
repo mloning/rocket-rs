@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use ndarray::prelude::*;
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArray3};
 use pyo3::prelude::*;
@@ -17,7 +15,6 @@ fn rocket_rs(_py: Python, module: &PyModule) -> PyResult<()> {
         let z = transform(x.as_array(), n_kernels);
         z.into_pyarray(py)
     }
-
     Ok(())
 }
 
@@ -55,23 +52,17 @@ fn generate_kernels(n_kernels: usize) -> Vec<Kernel> {
     kernels
 }
 
-// TODO we need to return params as part of an ndarray
-struct Params {
-    ppv: usize,
-    max: f64,
+fn get_n_timepoints_out(n_timepoints: usize, kernel: &Kernel) -> usize {
+    (n_timepoints + (2 * kernel.padding)) - ((kernel.len - 1) * kernel.dilation)
 }
 
-fn apply_kernel(x: ArrayView1<f64>, kernel: &Kernel) -> Params {
+fn apply_kernel(x: ArrayView1<f64>, kernel: &Kernel) -> Array1<f64> {
     let n_timepoints = x.len();
-
-    let n_timepoints_out =
-        (n_timepoints + (2 * kernel.padding)) - ((kernel.len - 1) * kernel.dilation);
-
-    let start = -(kernel.padding as isize);
-    let end = compute_end(&n_timepoints, kernel);
+    let n_timepoints_out = get_n_timepoints_out(n_timepoints, kernel) as f64;
+    let (start, end) = get_start_end(&n_timepoints, kernel);
 
     let mut sum = kernel.bias;
-    let mut ppv = 0;
+    let mut ppv = 0.;
     let mut max = 0.;
 
     for mut i in start..end {
@@ -86,35 +77,33 @@ fn apply_kernel(x: ArrayView1<f64>, kernel: &Kernel) -> Params {
             max = sum;
         }
         if sum > 0. {
-            ppv += 1;
+            ppv += 1.;
         }
     }
-
-    Params {
-        ppv: ppv / n_timepoints_out,
-        max,
-    }
+    array![max, ppv / n_timepoints_out]
 }
 
-fn compute_end(n_timepoints: &usize, kernel: &Kernel) -> isize {
-    let end = (n_timepoints + kernel.padding) - ((kernel.len - 1) * kernel.dilation);
-    end as isize
+fn get_start_end(n_timepoints: &usize, kernel: &Kernel) -> (isize, isize) {
+    let start = -(kernel.padding as isize);
+    let end = ((n_timepoints + kernel.padding) - ((kernel.len - 1) * kernel.dilation)) as isize;
+    (start, end)
 }
 
 fn apply_kernels(x: ArrayView3<f64>, kernels: Vec<Kernel>) -> Array3<f64> {
-    // TODO
     println!("{:?}", kernels.first().expect("empty"));
 
     let n_samples = x.shape()[0];
-    let mut params = Vec::with_capacity(n_samples);
+    let n_kernels = kernels.len();
+    let n_features = 2;
+    let mut y = Array3::zeros((n_samples, n_kernels, n_features));
 
+    // TODO profile
+    // TODO parallize
     for i in 0..n_samples {
-        for kernel in &kernels {
-            let param = apply_kernel(x.slice(s![i, 0, ..]), kernel);
-            params.push(param)
+        for (k, kernel) in kernels.iter().enumerate() {
+            let features = apply_kernel(x.slice(s![i, 0, ..]), kernel);
+            y.slice_mut(s![i, k, ..]).assign(&features);
         }
     }
-
-    // TODO remove
-    x.clone().to_owned()
+    y
 }
