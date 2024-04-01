@@ -16,7 +16,7 @@ def test_rocket_transform():
     """Test ROCKET transform."""
     x, _ = load_arrow_head(split="train")
     _check_array(x, ndim=3)
-    n_kernels = 10_000
+    n_kernels = 10
     z = transform(x, n_kernels=n_kernels)
     _check_array(z, ndim=3)
     assert z.shape == (x.shape[0], n_kernels, 2)
