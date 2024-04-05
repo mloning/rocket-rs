@@ -18,13 +18,21 @@ fn rocket_rs(_py: Python, module: &PyModule) -> PyResult<()> {
         let z = transform(x.as_array(), n_kernels);
         z.into_pyarray(py)
     }
+
+    // TODO convert to python list of dicts
+    // #[pyfn(module)]
+    // #[pyo3(name = "make_kernels")]
+    // fn make_kernels_py<'py>(n_timestamps: usize, n_kernels: usize) -> &'py Vec<Kernel> {
+    //     &generate_kernels(n_timestamps, n_kernels)
+    // }
+
     Ok(())
 }
 
 /// Rust implementation of ROCKET transform
 fn transform(x: ArrayView3<f64>, n_kernels: usize) -> Array3<f64> {
-    println!("x: {:?}", x.shape());
-    println!("n_kernels: {:?}", n_kernels);
+    // println!("x: {:?}", x.shape());
+    // println!("n_kernels: {:?}", n_kernels);
     let n_timestamps = x.shape()[2];
     let kernels = generate_kernels(n_timestamps, n_kernels);
     apply_kernels(x, kernels)
@@ -57,7 +65,8 @@ fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Vec<Kernel> {
         let dilation = 2 * dilation_dist.sample(&mut rng) as usize;
 
         // weights
-        let weights = Array1::random_using(len, weights_dist, &mut rng);
+        let mut weights = Array1::random_using(len, weights_dist, &mut rng);
+        weights -= weights.mean().expect("no mean");
 
         // bias
         let bias = bias_dist.sample(&mut rng);
@@ -68,7 +77,7 @@ fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Vec<Kernel> {
             false => (len - 1) * dilation / 2,
         };
 
-        // collect everything in kernel
+        // collect everything in kernel struct
         let kernel = Kernel {
             len,
             weights,
@@ -120,7 +129,7 @@ fn get_start_end(n_timepoints: &usize, kernel: &Kernel) -> (isize, isize) {
 }
 
 fn apply_kernels(x: ArrayView3<f64>, kernels: Vec<Kernel>) -> Array3<f64> {
-    println!("{:?}", kernels.first().expect("empty"));
+    // println!("{:?}", kernels.first().expect("empty"));
 
     let n_samples = x.shape()[0];
     let n_kernels = kernels.len();
