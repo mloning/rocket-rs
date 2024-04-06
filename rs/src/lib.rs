@@ -6,6 +6,7 @@ use ndarray_rand::RandomExt;
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArray3};
 use pyo3::prelude::*;
 use rand::prelude::*;
+use rayon::prelude::*;
 
 /// ROCKET Python module implemented in Rust
 #[pymodule]
@@ -50,45 +51,48 @@ struct Kernel {
 }
 
 fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Vec<Kernel> {
-    let mut rng = thread_rng();
     let candidate_len: [usize; 3] = [7, 9, 11];
 
     let weights_dist = Normal::new(0., 1.).expect("failed normal distribution");
     let bias_dist = Uniform::new(-1., 1.);
 
     let mut kernels = Vec::with_capacity(n_kernels);
-    for _ in 0..n_kernels {
-        // length
-        let len = *candidate_len.choose(&mut rng).expect("empty lenghts");
+    (0..n_kernels)
+        .into_par_iter()
+        .map(|_| {
+            let mut rng = thread_rng();
 
-        // dilation
-        let high = (((n_timestamps - 1) / (len - 1)) as f32).log2();
-        let dilation_dist = Uniform::new(0., high);
-        let dilation = 2 * dilation_dist.sample(&mut rng) as usize;
+            // length
+            let len = *candidate_len.choose(&mut rng).expect("empty lenghts");
 
-        // weights
-        let mut weights = Array1::random_using(len, weights_dist, &mut rng);
-        weights -= weights.mean().expect("no mean");
+            // dilation
+            let high = (((n_timestamps - 1) / (len - 1)) as f32).log2();
+            let dilation_dist = Uniform::new(0., high);
+            let dilation = 2 * dilation_dist.sample(&mut rng) as usize;
 
-        // bias
-        let bias = bias_dist.sample(&mut rng);
+            // weights
+            let mut weights = Array1::random_using(len, weights_dist, &mut rng);
+            weights -= weights.mean().expect("no mean");
 
-        // padding
-        let padding = match rng.gen() {
-            true => 0,
-            false => (len - 1) * dilation / 2,
-        };
+            // bias
+            let bias = bias_dist.sample(&mut rng);
 
-        // collect everything in kernel struct
-        let kernel = Kernel {
-            len,
-            weights,
-            bias,
-            dilation,
-            padding,
-        };
-        kernels.push(kernel);
-    }
+            // padding
+            let padding = match rng.gen() {
+                true => 0,
+                false => (len - 1) * dilation / 2,
+            };
+
+            // collect everything into kernel struct
+            Kernel {
+                len,
+                weights,
+                bias,
+                dilation,
+                padding,
+            }
+        })
+        .collect_into_vec(&mut kernels);
     kernels
 }
 
@@ -142,6 +146,7 @@ fn apply_kernels(x: ArrayView3<f64>, kernels: Vec<Kernel>) -> Array3<f64> {
     let mut y = Array3::zeros((n_samples, n_kernels, n_features));
 
     // parallelize over data rows
+    // TODO parallelize over kernels
     for (k, kernel) in kernels.iter().enumerate() {
         let x_iter = x.axis_iter(Axis(0)).into_par_iter();
         let y_iter = y.axis_iter_mut(Axis(0)).into_par_iter();
