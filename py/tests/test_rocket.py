@@ -18,7 +18,7 @@ def test_rocket_transform():
     """Test ROCKET transform."""
     x, _ = load_arrow_head(split="train")
     _check_array(x, ndim=3)
-    n_kernels = 1_000
+    n_kernels = 10_000
     start = time.perf_counter()
     z = transform(x, n_kernels=n_kernels)
     _elapsed = time.perf_counter() - start
@@ -28,7 +28,7 @@ def test_rocket_transform():
     # from aeon.transformations.collection.convolution_based import Rocket
     # t = Rocket(num_kernels=500, n_jobs=-1)
     # y = t.fit_transform(x)
-    # print(f"{_elapsed:.2f} s")
+    print(f"{_elapsed:.2f} s")
 
 
 if __name__ == "__main__":

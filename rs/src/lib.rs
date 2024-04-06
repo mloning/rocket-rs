@@ -1,6 +1,8 @@
+use ndarray::parallel::prelude::*;
 use ndarray::prelude::*;
 use ndarray_rand::rand_distr::{Normal, Uniform};
 use ndarray_rand::RandomExt;
+
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArray3};
 use pyo3::prelude::*;
 use rand::prelude::*;
@@ -91,13 +93,16 @@ fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Vec<Kernel> {
 }
 
 fn get_n_timepoints_out(n_timepoints: usize, kernel: &Kernel) -> usize {
+    // println!("{:?}", kernel);
+    // println!("{:?}", n_timepoints);
     (n_timepoints + (2 * kernel.padding)) - ((kernel.len - 1) * kernel.dilation)
 }
 
 fn apply_kernel(x: ArrayView1<f64>, kernel: &Kernel) -> Array1<f64> {
     let n_timepoints = x.len();
+    // let n_timepoints_out = (n_timepoints + 11) as f64;
     let n_timepoints_out = get_n_timepoints_out(n_timepoints, kernel) as f64;
-    let (start, end) = get_start_end(&n_timepoints, kernel);
+    let (start, end) = get_start_end(n_timepoints, kernel);
 
     let mut sum = kernel.bias;
     let mut ppv = 0.;
@@ -122,7 +127,7 @@ fn apply_kernel(x: ArrayView1<f64>, kernel: &Kernel) -> Array1<f64> {
     array![max, ppv / n_timepoints_out]
 }
 
-fn get_start_end(n_timepoints: &usize, kernel: &Kernel) -> (isize, isize) {
+fn get_start_end(n_timepoints: usize, kernel: &Kernel) -> (isize, isize) {
     let start = -(kernel.padding as isize);
     let end = ((n_timepoints + kernel.padding) - ((kernel.len - 1) * kernel.dilation)) as isize;
     (start, end)
@@ -136,13 +141,36 @@ fn apply_kernels(x: ArrayView3<f64>, kernels: Vec<Kernel>) -> Array3<f64> {
     let n_features = 2;
     let mut y = Array3::zeros((n_samples, n_kernels, n_features));
 
-    // TODO profile
-    // TODO parallize
-    for i in 0..n_samples {
-        for (k, kernel) in kernels.iter().enumerate() {
-            let features = apply_kernel(x.slice(s![i, 0, ..]), kernel);
-            y.slice_mut(s![i, k, ..]).assign(&features);
-        }
+    // parallelize over data rows
+    for (k, kernel) in kernels.iter().enumerate() {
+        let x_iter = x.axis_iter(Axis(0)).into_par_iter();
+        let y_iter = y.axis_iter_mut(Axis(0)).into_par_iter();
+        x_iter.zip(y_iter).for_each(|(xi, mut yi)| {
+            let features = apply_kernel(xi.slice(s![0, ..]), kernel);
+            yi.slice_mut(s![k, ..]).assign(&features);
+        })
     }
+
+    // let kernel = kernels.first().unwrap();
+    // let x_iter = x.axis_iter(Axis(0)).into_par_iter();
+    // let y_iter = y.axis_iter_mut(Axis(0)).into_par_iter();
+    // x_iter.zip(y_iter).for_each(|(xi, mut yi)| {
+    //     let features = apply_kernel(xi.slice(s![0, ..]), kernel);
+    //     yi.assign(&features);
+    //     for (k, kernel) in kernels.iter().enumerate() {
+    //         let features = apply_kernel(xi.slice(s![0, ..]), kernel);
+    //         yi.slice_mut(s![k, ..]).assign(&features);
+    //     }
+    //     // kernels.par_iter().enumerate().for_each(|(k, kernel)| {
+    //     //     let features = apply_kernel(xi.slice(s![0, ..]), kernel);
+    //     //     yi.slice_mut(s![k, ..]).assign(&features);
+    //     // })
+    // });
+    // for i in 0..n_samples {
+    //     for (k, kernel) in kernels.iter().enumerate() {
+    //         let features = apply_kernel(x.slice(s![i, 0, ..]), kernel);
+    //         y.slice_mut(s![i, k, ..]).assign(&features);
+    //     }
+    // }
     y
 }
