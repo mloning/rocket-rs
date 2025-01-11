@@ -6,11 +6,11 @@ use ndarray_rand::RandomExt;
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArray3};
 use pyo3::prelude::*;
 use rand::prelude::*;
-use rayon::prelude::*;
+use rayon::prelude::*; 
 
 /// ROCKET Python module implemented in Rust
 #[pymodule]
-fn rocket_rs(_py: Python, module: &PyModule) -> PyResult<()> {
+fn _rocket_rs(_py: Python, module: &PyModule) -> PyResult<()> {
     #[pyfn(module)]
     #[pyo3(name = "transform")]
     fn transform_py<'py>(

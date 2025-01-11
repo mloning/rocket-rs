@@ -1,5 +1,5 @@
 import numpy as np
-from rocket_rs import transform as _transform_rs
+from rocket_rs._rocket_rs import transform as _transform_rs
 
 
 def transform(x: np.ndarray, n_kernels: int = 10_000) -> np.ndarray:
@@ -20,7 +20,6 @@ def transform(x: np.ndarray, n_kernels: int = 10_000) -> np.ndarray:
         2-dimensional transformed time-series array with
         dimensions: (n_samples, 2 * n_kernels)
     """
-    # check input
     assert isinstance(x, np.ndarray)
     assert x.dtype == np.float64
     assert x.ndim == 3
@@ -30,5 +29,4 @@ def transform(x: np.ndarray, n_kernels: int = 10_000) -> np.ndarray:
     assert isinstance(n_kernels, int)
     assert n_kernels > 0
 
-    # apply transform
     return _transform_rs(x=x, n_kernels=n_kernels)
