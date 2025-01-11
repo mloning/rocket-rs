@@ -26,7 +26,8 @@ z = transform(x)
 - Install Python, e.g. using [miniforge](https://github.com/conda-forge/miniforge)
 - Install [Rust](https://www.rust-lang.org/tools/install)
 - Install [maturin](https://www.maturin.rs/)
-- Run: `maturin develop`
+- Run: `maturin develop --extras=dev`
+- Run: `pre-commit install --install-hooks`
 
 ### Development
 
