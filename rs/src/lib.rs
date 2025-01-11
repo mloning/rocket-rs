@@ -50,47 +50,62 @@ struct Kernel {
     padding: usize,
 }
 
-fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Vec<Kernel> {
-    let candidate_len: [usize; 3] = [7, 9, 11];
+fn generate_random_kernel(
+    candidate_lengths: [usize; 3],
+    weight_distribution: Normal<f64>,
+    bias_distribution: Uniform<f64>,
+    n_timestamps: usize,
+) -> Kernel {
+    let mut rng = thread_rng();
 
-    let weights_dist = Normal::new(0., 1.).expect("failed normal distribution");
-    let bias_dist = Uniform::new(-1., 1.);
+    // length
+    let len = *candidate_lengths.choose(&mut rng).expect("empty lenghts");
+
+    // dilation
+    let high = (((n_timestamps - 1) / (len - 1)) as f32).log2();
+    let dilation_dist = Uniform::new(0., high);
+    let dilation = 2 * dilation_dist.sample(&mut rng) as usize;
+
+    // weights
+    let mut weights = Array1::random_using(len, weight_distribution, &mut rng);
+    weights -= weights.mean().expect("no mean");
+
+    // bias
+    let bias = bias_distribution.sample(&mut rng);
+
+    // padding
+    let padding = match rng.gen() {
+        true => 0,
+        false => (len - 1) * dilation / 2,
+    };
+
+    // collect everything into kernel struct
+    Kernel {
+        len,
+        weights,
+        bias,
+        dilation,
+        padding,
+    }
+}
+
+fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Vec<Kernel> {
+    let candidate_lengths: [usize; 3] = [7, 9, 11];
+
+    let weigth_distribution = Normal::new(0., 1.).expect("failed normal distribution");
+    let bias_distribution = Uniform::new(-1., 1.);
 
     let mut kernels = Vec::with_capacity(n_kernels);
+    // TODO can we not sample first all params outside of the parallel loop?
     (0..n_kernels)
         .into_par_iter()
         .map(|_| {
-            let mut rng = thread_rng();
-
-            // length
-            let len = *candidate_len.choose(&mut rng).expect("empty lenghts");
-
-            // dilation
-            let high = (((n_timestamps - 1) / (len - 1)) as f32).log2();
-            let dilation_dist = Uniform::new(0., high);
-            let dilation = 2 * dilation_dist.sample(&mut rng) as usize;
-
-            // weights
-            let mut weights = Array1::random_using(len, weights_dist, &mut rng);
-            weights -= weights.mean().expect("no mean");
-
-            // bias
-            let bias = bias_dist.sample(&mut rng);
-
-            // padding
-            let padding = match rng.gen() {
-                true => 0,
-                false => (len - 1) * dilation / 2,
-            };
-
-            // collect everything into kernel struct
-            Kernel {
-                len,
-                weights,
-                bias,
-                dilation,
-                padding,
-            }
+            generate_random_kernel(
+                candidate_lengths,
+                weigth_distribution,
+                bias_distribution,
+                n_timestamps,
+            )
         })
         .collect_into_vec(&mut kernels);
     kernels
@@ -146,7 +161,7 @@ fn apply_kernels(x: ArrayView3<f64>, kernels: Vec<Kernel>) -> Array3<f64> {
     let mut y = Array3::zeros((n_samples, n_kernels, n_features));
 
     // parallelize over data rows
-    // TODO parallelize over kernels
+    // TODO parallelize over kernels, flatten loop (kernel, rows/axis=0)
     for (k, kernel) in kernels.iter().enumerate() {
         let x_iter = x.axis_iter(Axis(0)).into_par_iter();
         let y_iter = y.axis_iter_mut(Axis(0)).into_par_iter();
@@ -171,6 +186,8 @@ fn apply_kernels(x: ArrayView3<f64>, kernels: Vec<Kernel>) -> Array3<f64> {
     //     //     yi.slice_mut(s![k, ..]).assign(&features);
     //     // })
     // });
+    //
+    // basic, un-parallelised loop
     // for i in 0..n_samples {
     //     for (k, kernel) in kernels.iter().enumerate() {
     //         let features = apply_kernel(x.slice(s![i, 0, ..]), kernel);

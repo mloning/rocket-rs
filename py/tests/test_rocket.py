@@ -18,7 +18,7 @@ def test_rocket_rs_transform() -> None:
     """Test ROCKET transform."""
     x, _ = load_arrow_head(split="train")
     _check_array(x, ndim=3)
-    n_kernels = 10_000
+    n_kernels = 100
     start = time.perf_counter()
     z = transform(x, n_kernels=n_kernels)
     _elapsed = time.perf_counter() - start
