@@ -6,7 +6,7 @@ use ndarray_rand::RandomExt;
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArray3};
 use pyo3::prelude::*;
 use rand::prelude::*;
-use rayon::prelude::*; 
+use rayon::prelude::*;
 
 /// ROCKET Python module implemented in Rust
 #[pymodule]
@@ -18,7 +18,7 @@ fn _rocket_rs(_py: Python, module: &PyModule) -> PyResult<()> {
         x: PyReadonlyArray3<'py, f64>,
         n_kernels: usize,
     ) -> &'py PyArray3<f64> {
-        let z = transform(x.as_array(), n_kernels);
+        let z = transform_rs(x.as_array(), n_kernels);
         z.into_pyarray(py)
     }
 
@@ -33,7 +33,7 @@ fn _rocket_rs(_py: Python, module: &PyModule) -> PyResult<()> {
 }
 
 /// Rust implementation of ROCKET transform
-fn transform(x: ArrayView3<f64>, n_kernels: usize) -> Array3<f64> {
+fn transform_rs(x: ArrayView3<f64>, n_kernels: usize) -> Array3<f64> {
     // println!("x: {:?}", x.shape());
     // println!("n_kernels: {:?}", n_kernels);
     let n_timestamps = x.shape()[2];
