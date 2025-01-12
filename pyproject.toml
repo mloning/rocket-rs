@@ -6,7 +6,6 @@ build-backend = "maturin"
 name = "rocket_rs"
 description = "Rust implementation of ROCKET time-series transform with Python bindings"
 readme = "README.md"
-repository = "https://github.com/mloning/rocket-rs/"
 requires-python = "==3.11.*"
 classifiers = [
   "Programming Language :: Rust",
@@ -17,6 +16,9 @@ classifiers = [
 dynamic = ["version"]
 dependencies = ["aeon>=1.0.0"]
 
+[project.urls]
+Homepage = "https://github.com/mloning/rocket-rs"
+
 [project.optional-dependencies]
 dev = [
   "maturin==1.8.1",
@@ -25,13 +27,14 @@ dev = [
   "pre-commit==4.0.1",
   "maturin-import-hook==0.2.0",
 ]
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "py/src/"            # Python source code path
 module-name = "rocket_rs._rocket_rs"
 
 [tool.ruff.lint]
-select = [
+extend-select = [
   "E",      # pycodestyle
   "W",      # pycodestyle
   "F",      # Pyflakes
@@ -85,10 +88,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["D100", "D102", "D103", "B018", "FBT001"]
-
-[tool.ruff.lint.pycodestyle]
-max-doc-length = 88
+"py/tests/**/*.py" = ["D100", "D102", "D103", "B018", "FBT001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

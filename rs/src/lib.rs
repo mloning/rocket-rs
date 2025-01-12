@@ -8,13 +8,30 @@ use pyo3::prelude::*;
 use rand::prelude::*;
 use rayon::prelude::*;
 
-#[derive(Debug)]
+type Weights = Vec<f64>;
+
+#[derive(Debug, FromPyObject)]
+#[pyclass(get_all, frozen)]
 struct Kernel {
     len: usize,
-    weights: Array1<f64>,
+    weights: Weights,
     bias: f64,
     dilation: usize,
     padding: usize,
+}
+
+#[pymethods]
+impl Kernel {
+    #[new]
+    fn new(len: usize, weights: Weights, bias: f64, dilation: usize, padding: usize) -> Self {
+        Kernel {
+            len,
+            weights,
+            bias,
+            dilation,
+            padding,
+        }
+    }
 }
 
 type Kernels = Vec<Kernel>;
@@ -30,14 +47,30 @@ fn transform_py<'py>(
     z.into_pyarray(py)
 }
 
-/// ROCKET Python module implemented in Rust
+#[pyfunction]
+#[pyo3(name = "apply_kernels")]
+fn apply_kernels_py<'py>(
+    py: Python<'py>,
+    x: PyReadonlyArray3<'py, f64>,
+    kernels: Kernels,
+) -> &'py PyArray3<f64> {
+    let z = apply_kernels(x.as_array(), kernels);
+    z.into_pyarray(py)
+}
+
+/// ROCKET implemented in Rust
 #[pymodule]
 fn _rocket_rs(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(transform_py, m)?)
+    m.add_class::<Kernel>()?;
+
+    m.add_function(wrap_pyfunction!(transform_py, m)?)?;
+    m.add_function(wrap_pyfunction!(apply_kernels_py, m)?)?;
 
     // #[pyfn(module)]
     // #[pyo3(name = "apply_kernels")]
     // fn apply_kernels_py<'py>(py: Python<'py>, x: PyReadonlyArray3<'py, f64>, kernels: Kernels) {}
+
+    Ok(())
 }
 
 /// Rust implementation of ROCKET transform
@@ -68,6 +101,7 @@ fn generate_random_kernel(
     // weights
     let mut weights = Array1::random_using(len, weight_distribution, &mut rng);
     weights -= weights.mean().expect("no mean");
+    let weights = weights.to_vec();
 
     // bias
     let bias = bias_distribution.sample(&mut rng);

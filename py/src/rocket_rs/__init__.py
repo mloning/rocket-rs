@@ -1,3 +1,10 @@
-__all__ = ["transform"]
+"""Python bindings for the Rust implementation of ROCKET."""
 
-from ._transform import transform
+__all__ = [
+    "Kernel",
+    "apply_kernels",
+    "transform",
+]
+
+from rocket_rs._rocket_rs import Kernel, apply_kernels
+from rocket_rs._transform import transform

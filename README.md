@@ -37,17 +37,17 @@ python -m maturin_import_hook site install
 
 ### Development
 
-- `maturin develop` to re-build and install the development version
+- `maturin develop` to re-build and install the editable development version (`pip install --editable .`)
 - `maturin build` to build the Rust package and Python wheel
-- `pytest` to run Python unit tests
+- `pytest` to rebuild automatically using `maturin_import_hook` and run Python unit tests
 
 ### Todo
 
-- separate kernel parameter generation from computation
-- generate kernels in Python, pass to Rust function, check results against aeon in pytest
-- expose kernel parameter generation implemented in Rust via bindings
-- iterate over kernels, instances
-- benchmark & improve
+- [x] separate kernel parameter generation from computation
+- [x] generate kernels in Python, pass to Rust function, check results against aeon in pytest
+- [ ] flatten nested loop in `apply_kernels`, iterating over kernels and instances jointly
+- [ ] compare against Python implementation
+- [ ] benchmark & improve
 
 ### Notes
 
