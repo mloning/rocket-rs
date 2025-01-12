@@ -26,8 +26,14 @@ z = transform(x)
 - Install Python, e.g. using [miniforge](https://github.com/conda-forge/miniforge)
 - Install [Rust](https://www.rust-lang.org/tools/install)
 - Install [maturin](https://www.maturin.rs/)
-- Run: `maturin develop --extras=dev`
-- Run: `pre-commit install --install-hooks`
+- Create and activate Python virtual environment (e.g. `conda create -n rocket-rs python=3.11 && conda activate rocket-rs`)
+- Run:
+
+```bash
+maturin develop --extras=dev
+pre-commit install --install-hooks
+python -m maturin_import_hook site install
+```
 
 ### Development
 

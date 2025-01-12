@@ -18,7 +18,13 @@ dynamic = ["version"]
 dependencies = ["aeon>=1.0.0"]
 
 [project.optional-dependencies]
-dev = ["maturin==1.8.1", "pytest==8.3.4", "ruff==0.9.1", "pre-commit==4.0.1"]
+dev = [
+  "maturin==1.8.1",
+  "pytest==8.3.4",
+  "ruff==0.9.1",
+  "pre-commit==4.0.1",
+  "maturin-import-hook==0.2.0",
+]
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "py/src/"            # Python source code path
