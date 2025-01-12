@@ -14,7 +14,7 @@ def _check_array(x: np.ndarray, ndim: int) -> None:
         assert x.shape[i] > 0
 
 
-def test_rocket_rs_transform() -> None:
+def test_transform() -> None:
     """Test ROCKET transform."""
     x, _ = load_arrow_head(split="train")
     _check_array(x, ndim=3)

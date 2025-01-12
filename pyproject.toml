@@ -9,50 +9,44 @@ readme = "README.md"
 repository = "https://github.com/mloning/rocket-rs/"
 requires-python = "==3.11.*"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 dynamic = ["version"]
-dependencies = [
-  "aeon>=1.0.0",
-]
+dependencies = ["aeon>=1.0.0"]
 
 [project.optional-dependencies]
-dev = [
-  "maturin==1.8.1",
-  "pytest==8.3.4",
-  "ruff==0.9.1",
-  "pre-commit==4.0.1",
-]
+dev = ["maturin==1.8.1", "pytest==8.3.4", "ruff==0.9.1", "pre-commit==4.0.1"]
 [tool.maturin]
 features = ["pyo3/extension-module"]
-python-source = "py/src/"  # Python source code path
+python-source = "py/src/"            # Python source code path
 module-name = "rocket_rs._rocket_rs"
 
 [tool.ruff.lint]
 select = [
-  "E", # pycodestyle
-  "W", # pycodestyle
-  "F", # Pyflakes
-  "B", # flake8-bugbear
-  "C4", # flake8-comprehensions
-  "D", # flake8-docstrings
-  "D213", # Augment NumPy docstring convention: Multi-line docstring summary should start at the second line
-  "D417", # Augment NumPy docstring convention: Missing argument descriptions
-  "I", # isort
-  "SIM", # flake8-simplify
-  "TCH", # flake8-type-checking
-  "TID", # flake8-tidy-imports
-  "UP", # pyupgrade
-  "PT", # flake8-pytest-style
-  "RUF", # Ruff-specific rules
-  "PTH", # flake8-use-pathlib
-  "FA", # flake8-future-annotations
-  "PIE", # flake8-pie
-  "TD", # flake8-todos
-  "TRY", # tryceratops
-  "EM", # flake8-errmsg
+  "E",      # pycodestyle
+  "W",      # pycodestyle
+  "F",      # Pyflakes
+  "B",      # flake8-bugbear
+  "C4",     # flake8-comprehensions
+  "D",      # flake8-docstrings
+  "D213",   # Augment NumPy docstring convention: Multi-line docstring summary should start at the second line
+  "D417",   # Augment NumPy docstring convention: Missing argument descriptions
+  "I",      # isort
+  "SIM",    # flake8-simplify
+  "TCH",    # flake8-type-checking
+  "TID",    # flake8-tidy-imports
+  "UP",     # pyupgrade
+  "PT",     # flake8-pytest-style
+  "RUF",    # Ruff-specific rules
+  "PTH",    # flake8-use-pathlib
+  "FA",     # flake8-future-annotations
+  "PIE",    # flake8-pie
+  "TD",     # flake8-todos
+  "TRY",    # tryceratops
+  "EM",     # flake8-errmsg
   "FBT001", # flake8-boolean-trap
 ]
 

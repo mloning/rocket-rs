@@ -8,39 +8,6 @@ use pyo3::prelude::*;
 use rand::prelude::*;
 use rayon::prelude::*;
 
-/// ROCKET Python module implemented in Rust
-#[pymodule]
-fn _rocket_rs(_py: Python, module: &PyModule) -> PyResult<()> {
-    #[pyfn(module)]
-    #[pyo3(name = "transform")]
-    fn transform_py<'py>(
-        py: Python<'py>,
-        x: PyReadonlyArray3<'py, f64>,
-        n_kernels: usize,
-    ) -> &'py PyArray3<f64> {
-        let z = transform_rs(x.as_array(), n_kernels);
-        z.into_pyarray(py)
-    }
-
-    // TODO convert to python list of dicts
-    // #[pyfn(module)]
-    // #[pyo3(name = "make_kernels")]
-    // fn make_kernels_py<'py>(n_timestamps: usize, n_kernels: usize) -> &'py Vec<Kernel> {
-    //     &generate_kernels(n_timestamps, n_kernels)
-    // }
-
-    Ok(())
-}
-
-/// Rust implementation of ROCKET transform
-fn transform_rs(x: ArrayView3<f64>, n_kernels: usize) -> Array3<f64> {
-    // println!("x: {:?}", x.shape());
-    // println!("n_kernels: {:?}", n_kernels);
-    let n_timestamps = x.shape()[2];
-    let kernels = generate_kernels(n_timestamps, n_kernels);
-    apply_kernels(x, kernels)
-}
-
 #[derive(Debug)]
 struct Kernel {
     len: usize,
@@ -48,6 +15,38 @@ struct Kernel {
     bias: f64,
     dilation: usize,
     padding: usize,
+}
+
+type Kernels = Vec<Kernel>;
+
+#[pyfunction]
+#[pyo3(name = "transform")]
+fn transform_py<'py>(
+    py: Python<'py>,
+    x: PyReadonlyArray3<'py, f64>,
+    n_kernels: usize,
+) -> &'py PyArray3<f64> {
+    let z = transform(x.as_array(), n_kernels);
+    z.into_pyarray(py)
+}
+
+/// ROCKET Python module implemented in Rust
+#[pymodule]
+fn _rocket_rs(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(transform_py, m)?)
+
+    // #[pyfn(module)]
+    // #[pyo3(name = "apply_kernels")]
+    // fn apply_kernels_py<'py>(py: Python<'py>, x: PyReadonlyArray3<'py, f64>, kernels: Kernels) {}
+}
+
+/// Rust implementation of ROCKET transform
+fn transform(x: ArrayView3<f64>, n_kernels: usize) -> Array3<f64> {
+    // println!("x: {:?}", x.shape());
+    // println!("n_kernels: {:?}", n_kernels);
+    let n_timestamps = x.shape()[2];
+    let kernels = generate_kernels(n_timestamps, n_kernels);
+    apply_kernels(x, kernels)
 }
 
 fn generate_random_kernel(
@@ -89,7 +88,7 @@ fn generate_random_kernel(
     }
 }
 
-fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Vec<Kernel> {
+fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Kernels {
     let candidate_lengths: [usize; 3] = [7, 9, 11];
 
     let weigth_distribution = Normal::new(0., 1.).expect("failed normal distribution");
@@ -152,7 +151,7 @@ fn get_start_end(n_timepoints: usize, kernel: &Kernel) -> (isize, isize) {
     (start, end)
 }
 
-fn apply_kernels(x: ArrayView3<f64>, kernels: Vec<Kernel>) -> Array3<f64> {
+fn apply_kernels(x: ArrayView3<f64>, kernels: Kernels) -> Array3<f64> {
     // println!("{:?}", kernels.first().expect("empty"));
 
     let n_samples = x.shape()[0];
