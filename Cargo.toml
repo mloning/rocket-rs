@@ -8,14 +8,10 @@ name = "rocket_rs"
 path = "rs/src/lib.rs"  # Rust source code path
 crate-type = ["cdylib"]
 
-[[bin]]
-name = "par"
-path = "rs/src/bin/par.rs"
-
 [dependencies]
 ndarray = { version = "0.15.6", features = ["rayon"] }
 ndarray-rand = "0.14.0"
 numpy = "0.20.0"
-pyo3 = "0.20.0"
+pyo3 = "0.20.3"
 rand = "0.8.5"
 rayon = "1.10.0"

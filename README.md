@@ -32,7 +32,7 @@ z = transform(x)
 ```bash
 maturin develop --extras=dev
 pre-commit install --install-hooks
-python -m maturin_import_hook site install
+python -m maturin_import_hook site install --args="--release"
 ```
 
 ### Development

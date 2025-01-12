@@ -147,7 +147,6 @@ fn get_n_timepoints_out(n_timepoints: usize, kernel: &Kernel) -> usize {
 
 fn apply_kernel(x: ArrayView1<f64>, kernel: &Kernel) -> Array1<f64> {
     let n_timepoints = x.len();
-    // let n_timepoints_out = (n_timepoints + 11) as f64;
     let n_timepoints_out = get_n_timepoints_out(n_timepoints, kernel) as f64;
     let (start, end) = get_start_end(n_timepoints, kernel);
 
@@ -155,7 +154,6 @@ fn apply_kernel(x: ArrayView1<f64>, kernel: &Kernel) -> Array1<f64> {
     let mut ppv = 0.;
     let mut max = 0.;
 
-    // for i in (start..end).step_by(kernel.dilation)
     for mut i in start..end {
         for j in 0..kernel.len {
             if i > -1 && i < n_timepoints as isize {
@@ -180,47 +178,36 @@ fn get_start_end(n_timepoints: usize, kernel: &Kernel) -> (isize, isize) {
     (start, end)
 }
 
+/// Apply kernels to time series
 fn apply_kernels(x: ArrayView3<f64>, kernels: &Kernels) -> Array3<f64> {
-    // println!("{:?}", kernels.first().expect("empty"));
-
     let n_samples = x.shape()[0];
     let n_kernels = kernels.len();
-    let n_features = 2;
+    let n_features = 2; // depends on `apply_kernel` function
     let mut y = Array3::zeros((n_samples, n_kernels, n_features));
 
-    // parallelize over data rows
-    // TODO parallelize over kernels, flatten loop (kernel, rows/axis=0)
-    for (k, kernel) in kernels.iter().enumerate() {
-        let x_iter = x.axis_iter(Axis(0)).into_par_iter();
-        let y_iter = y.axis_iter_mut(Axis(0)).into_par_iter();
-        x_iter.zip(y_iter).for_each(|(xi, mut yi)| {
-            let features = apply_kernel(xi.slice(s![0, ..]), kernel);
-            yi.slice_mut(s![k, ..]).assign(&features);
-        })
-    }
-
-    // let kernel = kernels.first().unwrap();
-    // let x_iter = x.axis_iter(Axis(0)).into_par_iter();
-    // let y_iter = y.axis_iter_mut(Axis(0)).into_par_iter();
-    // x_iter.zip(y_iter).for_each(|(xi, mut yi)| {
-    //     let features = apply_kernel(xi.slice(s![0, ..]), kernel);
-    //     yi.assign(&features);
-    //     for (k, kernel) in kernels.iter().enumerate() {
-    //         let features = apply_kernel(xi.slice(s![0, ..]), kernel);
-    //         yi.slice_mut(s![k, ..]).assign(&features);
-    //     }
-    //     // kernels.par_iter().enumerate().for_each(|(k, kernel)| {
-    //     //     let features = apply_kernel(xi.slice(s![0, ..]), kernel);
-    //     //     yi.slice_mut(s![k, ..]).assign(&features);
-    //     // })
-    // });
+    // we parallelize kernel computation using multi-threading; this create threads for each time
+    // series (or rows) in the array, and iterate over all kernels inside each thread; this tries
+    // to balance thread management overhead with parallel execution; this will work well for larger
+    // numbers of longer time series, relative to the number of kernels, but less so for smaller
+    // numbers of shorter time series
     //
-    // basic, un-parallelised loop
+    // sequential loop
     // for i in 0..n_samples {
     //     for (k, kernel) in kernels.iter().enumerate() {
     //         let features = apply_kernel(x.slice(s![i, 0, ..]), kernel);
     //         y.slice_mut(s![i, k, ..]).assign(&features);
     //     }
     // }
+    //
+    y.axis_iter_mut(Axis(0))
+        .into_par_iter()
+        .enumerate()
+        .for_each(|(i, mut yi)| {
+            let xi = x.index_axis(Axis(0), i);
+            for (k, kernel) in kernels.iter().enumerate() {
+                let features = apply_kernel(xi.slice(s![0, ..]), kernel);
+                yi.slice_mut(s![k, ..]).assign(&features);
+            }
+        });
     y
 }
