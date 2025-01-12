@@ -42,7 +42,7 @@ def run_benchmark() -> None:
 
 def main() -> None:
     """Main function."""
-    print(sys.version)
+    print(f"Python version: {sys.version}")
     run_benchmark()
 
 
