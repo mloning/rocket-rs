@@ -54,7 +54,7 @@ fn apply_kernels_py<'py>(
     x: PyReadonlyArray3<'py, f64>,
     kernels: Kernels,
 ) -> &'py PyArray3<f64> {
-    let z = apply_kernels(x.as_array(), kernels);
+    let z = apply_kernels(x.as_array(), &kernels);
     z.into_pyarray(py)
 }
 
@@ -62,13 +62,8 @@ fn apply_kernels_py<'py>(
 #[pymodule]
 fn _rocket_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Kernel>()?;
-
     m.add_function(wrap_pyfunction!(transform_py, m)?)?;
     m.add_function(wrap_pyfunction!(apply_kernels_py, m)?)?;
-
-    // #[pyfn(module)]
-    // #[pyo3(name = "apply_kernels")]
-    // fn apply_kernels_py<'py>(py: Python<'py>, x: PyReadonlyArray3<'py, f64>, kernels: Kernels) {}
 
     Ok(())
 }
@@ -79,7 +74,7 @@ fn transform(x: ArrayView3<f64>, n_kernels: usize) -> Array3<f64> {
     // println!("n_kernels: {:?}", n_kernels);
     let n_timestamps = x.shape()[2];
     let kernels = generate_kernels(n_timestamps, n_kernels);
-    apply_kernels(x, kernels)
+    apply_kernels(x, &kernels)
 }
 
 fn generate_random_kernel(
@@ -185,7 +180,7 @@ fn get_start_end(n_timepoints: usize, kernel: &Kernel) -> (isize, isize) {
     (start, end)
 }
 
-fn apply_kernels(x: ArrayView3<f64>, kernels: Kernels) -> Array3<f64> {
+fn apply_kernels(x: ArrayView3<f64>, kernels: &Kernels) -> Array3<f64> {
     // println!("{:?}", kernels.first().expect("empty"));
 
     let n_samples = x.shape()[0];
