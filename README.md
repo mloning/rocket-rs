@@ -39,7 +39,8 @@ python -m maturin_import_hook site install --args="--release"
 
 - `maturin develop` to re-build and install the editable development version (`pip install --editable .`)
 - `maturin build` to build the Rust package and Python wheel
-- `pytest` to rebuild automatically using `maturin_import_hook` and run Python unit tests
+- `pytest --benchmark-skip` to rebuild automatically using `maturin_import_hook` and run Python unit tests
+- `pytest --benchmark-only` to run benchmarks using `maturin_import_hook`
 
 ### Todo
 

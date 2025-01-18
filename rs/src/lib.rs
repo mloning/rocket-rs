@@ -191,10 +191,10 @@ fn apply_kernels(x: ArrayView3<f32>, kernels: &Kernels) -> Array3<f32> {
     let n_samples = x.shape()[0];
     let n_kernels = kernels.len();
     let n_features = 2; // depends on `apply_kernel` function
-    let mut y = Array3::zeros((n_samples, n_kernels, n_features));
+    let mut z = Array3::zeros((n_samples, n_kernels, n_features));
 
     // we parallelize kernel computation using multi-threading; this create threads for each time
-    // series (or rows) in the array, and iterate over all kernels inside each thread; this tries
+    // series (or row) in the array, and iterates over all kernels inside each thread; this tries
     // to balance thread management overhead with parallel execution; this will work well for larger
     // numbers of longer time series, relative to the number of kernels, but less so for smaller
     // numbers of shorter time series
@@ -207,7 +207,7 @@ fn apply_kernels(x: ArrayView3<f32>, kernels: &Kernels) -> Array3<f32> {
     //     }
     // }
     //
-    y.axis_iter_mut(Axis(0))
+    z.axis_iter_mut(Axis(0))
         .into_par_iter()
         .enumerate()
         .for_each(|(i, mut yi)| {
@@ -217,5 +217,5 @@ fn apply_kernels(x: ArrayView3<f32>, kernels: &Kernels) -> Array3<f32> {
                 yi.slice_mut(s![k, ..]).assign(&features);
             }
         });
-    y
+    z
 }
