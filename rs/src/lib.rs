@@ -8,14 +8,14 @@ use pyo3::prelude::*;
 use rand::prelude::*;
 use rayon::prelude::*;
 
-type Weights = Vec<f64>;
+type Weights = Vec<f32>;
 
 #[derive(Debug, FromPyObject)]
 #[pyclass(get_all, frozen)]
 struct Kernel {
     len: usize,
     weights: Weights,
-    bias: f64,
+    bias: f32,
     dilation: usize,
     padding: usize,
 }
@@ -23,7 +23,7 @@ struct Kernel {
 #[pymethods]
 impl Kernel {
     #[new]
-    fn new(len: usize, weights: Weights, bias: f64, dilation: usize, padding: usize) -> Self {
+    fn new(len: usize, weights: Weights, bias: f32, dilation: usize, padding: usize) -> Self {
         Kernel {
             len,
             weights,
@@ -40,9 +40,9 @@ type Kernels = Vec<Kernel>;
 #[pyo3(name = "transform")]
 fn transform_py<'py>(
     py: Python<'py>,
-    x: PyReadonlyArray3<'py, f64>,
+    x: PyReadonlyArray3<'py, f32>,
     n_kernels: usize,
-) -> &'py PyArray3<f64> {
+) -> &'py PyArray3<f32> {
     let z = transform(x.as_array(), n_kernels);
     z.into_pyarray(py)
 }
@@ -51,9 +51,9 @@ fn transform_py<'py>(
 #[pyo3(name = "apply_kernels")]
 fn apply_kernels_py<'py>(
     py: Python<'py>,
-    x: PyReadonlyArray3<'py, f64>,
+    x: PyReadonlyArray3<'py, f32>,
     kernels: Kernels,
-) -> &'py PyArray3<f64> {
+) -> &'py PyArray3<f32> {
     let z = apply_kernels(x.as_array(), &kernels);
     z.into_pyarray(py)
 }
@@ -69,7 +69,7 @@ fn _rocket_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 /// Rust implementation of ROCKET transform
-fn transform(x: ArrayView3<f64>, n_kernels: usize) -> Array3<f64> {
+fn transform(x: ArrayView3<f32>, n_kernels: usize) -> Array3<f32> {
     // println!("x: {:?}", x.shape());
     // println!("n_kernels: {:?}", n_kernels);
     let n_timestamps = x.shape()[2];
@@ -79,8 +79,8 @@ fn transform(x: ArrayView3<f64>, n_kernels: usize) -> Array3<f64> {
 
 fn generate_random_kernel(
     candidate_lengths: [usize; 3],
-    weight_distribution: Normal<f64>,
-    bias_distribution: Uniform<f64>,
+    weight_distribution: Normal<f32>,
+    bias_distribution: Uniform<f32>,
     n_timestamps: usize,
 ) -> Kernel {
     let mut rng = thread_rng();
@@ -145,9 +145,9 @@ fn get_n_timepoints_out(n_timepoints: usize, kernel: &Kernel) -> usize {
     (n_timepoints + (2 * kernel.padding)) - ((kernel.len - 1) * kernel.dilation)
 }
 
-fn apply_kernel(x: ArrayView1<f64>, kernel: &Kernel) -> Array1<f64> {
+fn apply_kernel(x: ArrayView1<f32>, kernel: &Kernel) -> Array1<f32> {
     let n_timepoints = x.len();
-    let n_timepoints_out = get_n_timepoints_out(n_timepoints, kernel) as f64;
+    let n_timepoints_out = get_n_timepoints_out(n_timepoints, kernel) as f32;
     let (start, end) = get_start_end(n_timepoints, kernel);
 
     let mut sum = kernel.bias;
@@ -179,7 +179,7 @@ fn get_start_end(n_timepoints: usize, kernel: &Kernel) -> (isize, isize) {
 }
 
 /// Apply kernels to time series
-fn apply_kernels(x: ArrayView3<f64>, kernels: &Kernels) -> Array3<f64> {
+fn apply_kernels(x: ArrayView3<f32>, kernels: &Kernels) -> Array3<f32> {
     let n_samples = x.shape()[0];
     let n_kernels = kernels.len();
     let n_features = 2; // depends on `apply_kernel` function

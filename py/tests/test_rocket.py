@@ -2,24 +2,17 @@ import time
 
 import numpy as np
 import pytest
-from aeon.datasets import load_arrow_head
+from aeon.datasets import load_unit_test
 from rocket_rs import Kernel, apply_kernels, transform
-
-
-def _check_array(x: np.ndarray, ndim: int) -> None:
-    assert isinstance(x, np.ndarray)
-    assert ndim > 0
-    assert x.dtype == np.float64
-    assert x.ndim == ndim
-    for i in range(ndim):
-        assert x.shape[i] > 0
+from rocket_rs._utils import _check_array
 
 
 @pytest.fixture
 def x() -> np.ndarray:
-    x, _ = load_arrow_head(split="train")
-    _check_array(x, ndim=3)
-    return x
+    x, _ = load_unit_test(split="train")
+    assert isinstance(x, np.ndarray)  # reassure type checker
+    _check_array(x, ndim=3, dtype="float64")
+    return x.astype("float32")
 
 
 def test_transform(x: np.ndarray) -> None:
@@ -29,7 +22,7 @@ def test_transform(x: np.ndarray) -> None:
     z = transform(x, n_kernels=n_kernels)
     _elapsed = time.perf_counter() - start
     print(f"rust: {_elapsed:.2f}s")
-    _check_array(z, ndim=3)
+    _check_array(z, ndim=3, dtype="float32")
     assert z.shape == (x.shape[0], n_kernels, 2)
 
 
@@ -66,11 +59,11 @@ def test_kernel_init_and_get_attr() -> None:
         ],
     ],
 )
-def test_apply_kernels(x: np.ndarray, kernels: list[Kernel]) -> None:
+def test_apply_kernels_return_type(x: np.ndarray, kernels: list[Kernel]) -> None:
     n_kernels = len(kernels)
     z = apply_kernels(x=x, kernels=kernels)
 
-    _check_array(z, ndim=3)
+    _check_array(z, ndim=3, dtype="float32")
 
     # last dimension is number of features
     assert z.shape[:2] == (x.shape[0], n_kernels)
