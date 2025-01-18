@@ -3,17 +3,19 @@ from functools import partial
 
 import numpy as np
 import pytest
-from aeon.datasets import load_unit_test
 from aeon.transformations.collection.convolution_based._rocket import (
     _apply_kernels as _apply_kernels_aeon,
 )
+from pytest_benchmark.fixture import BenchmarkFixture
 from rocket_rs import Kernel, apply_kernels, generate_kernels
 from rocket_rs._utils import _check_array
 
 
 @pytest.fixture
 def x() -> np.ndarray:
-    x, _ = load_unit_test(split="train")
+    # x, _ = load_unit_test(split="train")
+    # x, _ = load_arrow_head(split="train")
+    x = np.random.normal(size=(1_000, 1, 1_000))
     assert isinstance(x, np.ndarray)  # reassure type checker
     _check_array(x, ndim=3, dtype="float64")
     return x.astype("float32")
@@ -77,7 +79,7 @@ def apply_kernels_aeon(
         partial(generate_kernels, n_kernels=35),
     ],
 )
-def test_transform_against_aeon_random_kernels(
+def test_apply_kernels_against_aeon_random_kernels(
     x: np.ndarray, generate_kernels_func: Callable
 ) -> None:
     n_timepoints = x.shape[-1]
@@ -106,9 +108,24 @@ def test_transform_against_aeon_random_kernels(
         ],
     ],
 )
-def test_transform_against_aeon_fixed_kernels(
+def test_apply_kernels_against_aeon_fixed_kernels(
     x: np.ndarray, kernels: list[Kernel]
 ) -> None:
     a = apply_kernels(x=x, kernels=kernels)
     b = apply_kernels_aeon(x=x, kernels=kernels)
     np.testing.assert_allclose(a, b, rtol=1e-6, atol=1e-6)
+
+
+def test_apply_kernels_benchmark(x: np.ndarray, benchmark: BenchmarkFixture) -> None:
+    n_timepoints = x.shape[-1]
+    kernels = generate_kernels(n_kernels=1_000, n_timepoints=n_timepoints)
+    benchmark(apply_kernels, x=x, kernels=kernels)
+
+
+def test_apply_kernels_benchmark_aeon(
+    x: np.ndarray, benchmark: BenchmarkFixture
+) -> None:
+    n_timepoints = x.shape[-1]
+    kernels = generate_kernels(n_kernels=1_000, n_timepoints=n_timepoints)
+    kernels_aeon = _convert_kernels_aeon(kernels=kernels)
+    benchmark(_apply_kernels_aeon, X=x, kernels=kernels_aeon)

@@ -44,9 +44,8 @@ python -m maturin_import_hook site install --args="--release"
 ### Todo
 
 - [x] separate kernel parameter generation from computation
-- [x] generate kernels in Python, pass to Rust function, check results against aeon in pytest
-- [ ] flatten nested loop in `apply_kernels`, iterating over kernels and instances jointly
-- [ ] compare against Python implementation
+- [x] compare and test against Python implementation in [aeon]
+- [ ] refactor to pass random generator to functions
 - [ ] benchmark & improve
 
 ### Notes
