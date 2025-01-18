@@ -58,12 +58,18 @@ fn apply_kernels_py<'py>(
     z.into_pyarray(py)
 }
 
+#[pyfunction]
+#[pyo3(name = "generate_kernels")]
+fn generate_kernels_py<'py>(_py: Python<'py>, n_timepoints: usize, n_kernels: usize) -> Kernels {
+    generate_kernels(n_timepoints, n_kernels)
+}
 /// ROCKET implemented in Rust
 #[pymodule]
 fn _rocket_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Kernel>()?;
     m.add_function(wrap_pyfunction!(transform_py, m)?)?;
     m.add_function(wrap_pyfunction!(apply_kernels_py, m)?)?;
+    m.add_function(wrap_pyfunction!(generate_kernels_py, m)?)?;
 
     Ok(())
 }
@@ -72,8 +78,8 @@ fn _rocket_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 fn transform(x: ArrayView3<f32>, n_kernels: usize) -> Array3<f32> {
     // println!("x: {:?}", x.shape());
     // println!("n_kernels: {:?}", n_kernels);
-    let n_timestamps = x.shape()[2];
-    let kernels = generate_kernels(n_timestamps, n_kernels);
+    let n_timepoints = x.shape()[2];
+    let kernels = generate_kernels(n_timepoints, n_kernels);
     apply_kernels(x, &kernels)
 }
 
@@ -81,15 +87,17 @@ fn generate_random_kernel(
     candidate_lengths: [usize; 3],
     weight_distribution: Normal<f32>,
     bias_distribution: Uniform<f32>,
-    n_timestamps: usize,
+    n_timepoints: usize,
 ) -> Kernel {
+    // TODO refactor to pass in rng to all random functions so that other, seeded rngs can be used
+    // for reproducibility
     let mut rng = thread_rng();
 
     // length
     let len = *candidate_lengths.choose(&mut rng).expect("empty lenghts");
 
     // dilation
-    let high = (((n_timestamps - 1) / (len - 1)) as f32).log2();
+    let high = (((n_timepoints - 1) / (len - 1)) as f32).log2();
     let dilation_dist = Uniform::new(0., high);
     let dilation = 2 * dilation_dist.sample(&mut rng) as usize;
 
@@ -117,7 +125,7 @@ fn generate_random_kernel(
     }
 }
 
-fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Kernels {
+fn generate_kernels(n_timepoints: usize, n_kernels: usize) -> Kernels {
     let candidate_lengths: [usize; 3] = [7, 9, 11];
 
     let weigth_distribution = Normal::new(0., 1.).expect("failed normal distribution");
@@ -132,7 +140,7 @@ fn generate_kernels(n_timestamps: usize, n_kernels: usize) -> Kernels {
                 candidate_lengths,
                 weigth_distribution,
                 bias_distribution,
-                n_timestamps,
+                n_timepoints,
             )
         })
         .collect_into_vec(&mut kernels);
@@ -150,13 +158,13 @@ fn apply_kernel(x: ArrayView1<f32>, kernel: &Kernel) -> Array1<f32> {
     let n_timepoints_out = get_n_timepoints_out(n_timepoints, kernel) as f32;
     let (start, end) = get_start_end(n_timepoints, kernel);
 
-    let mut sum = kernel.bias;
     let mut ppv = 0.;
-    let mut max = 0.;
+    let mut max = f32::NEG_INFINITY;
 
     for mut i in start..end {
+        let mut sum = kernel.bias;
         for j in 0..kernel.len {
-            if i > -1 && i < n_timepoints as isize {
+            if (i > -1) && (i < n_timepoints as isize) {
                 let xi = x[i as usize];
                 sum += xi * kernel.weights[j];
             }
@@ -169,7 +177,7 @@ fn apply_kernel(x: ArrayView1<f32>, kernel: &Kernel) -> Array1<f32> {
             ppv += 1.;
         }
     }
-    array![max, ppv / n_timepoints_out]
+    array![ppv / n_timepoints_out, max]
 }
 
 fn get_start_end(n_timepoints: usize, kernel: &Kernel) -> (isize, isize) {

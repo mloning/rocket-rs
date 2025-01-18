@@ -1,10 +1,13 @@
+from collections.abc import Callable
+from functools import partial
+
 import numpy as np
 import pytest
 from aeon.datasets import load_unit_test
 from aeon.transformations.collection.convolution_based._rocket import (
     _apply_kernels as _apply_kernels_aeon,
 )
-from rocket_rs import Kernel
+from rocket_rs import Kernel, apply_kernels, generate_kernels
 from rocket_rs._utils import _check_array
 
 
@@ -58,18 +61,54 @@ def apply_kernels_aeon(
     x: np.ndarray,
     kernels: list[Kernel],
 ) -> np.ndarray:
+    n_samples = x.shape[0]
+    n_kernels = len(kernels)
     kernel_kwargs = _convert_kernels_aeon(kernels=kernels)
-    return _apply_kernels_aeon(X=x, kernels=kernel_kwargs)
+    out = _apply_kernels_aeon(X=x, kernels=kernel_kwargs)
+    return out.reshape(n_samples, n_kernels, -1)
 
 
-# @pytest.mark.parametrize(
-#     "kernels",
-#     [
-#         [Kernel(3, [1.0, 2.0, 3.0], 0.5, 2, 2)],
-#         [Kernel(5, [1.0, 2.0, 3.0, 2.0, 0.5], 1, 1, 1)],
-#     ],
-# )
-# def test_transform_against_aeon(x: np.ndarray, kernels: list[Kernel]) -> None:
-#     a = apply_kernels(x=x.astype("float32"), kernels=kernels).squeeze(axis=1)
-#     b = apply_kernels_aeon(x=x, kernels=kernels)
-#     np.testing.assert_allclose(a, b, rtol=1e-5, atol=1e-5)
+@pytest.mark.parametrize(
+    "generate_kernels_func",
+    [
+        partial(generate_kernels, n_kernels=1),
+        partial(generate_kernels, n_kernels=3),
+        partial(generate_kernels, n_kernels=13),
+        partial(generate_kernels, n_kernels=35),
+    ],
+)
+def test_transform_against_aeon_random_kernels(
+    x: np.ndarray, generate_kernels_func: Callable
+) -> None:
+    n_timepoints = x.shape[-1]
+    kernels = generate_kernels_func(n_timepoints=n_timepoints)
+    a = apply_kernels(x=x, kernels=kernels)
+    b = apply_kernels_aeon(x=x, kernels=kernels)
+    np.testing.assert_allclose(a, b, rtol=1e-3, atol=1e-3)
+
+
+@pytest.mark.parametrize(
+    "kernels",
+    [
+        # single kernel
+        [Kernel(2, [2.5, 3.1], 0.2, 1, 3)],
+        [Kernel(3, [1.0, 2.0, 3.0], 0.5, 2, 2)],
+        [Kernel(5, [1.0, 2.0, 3.0, 2.0, 0.5], 1, 1, 1)],
+        # multiple kernels
+        [
+            Kernel(2, [2.5, 3.1], 0.2, 1, 3),
+            Kernel(5, [1.1, 2.1, 3.3, 2.2, 1.5], 3, 2, 5),
+        ],
+        [
+            Kernel(2, [2.5, 3.1], 0.2, 1, 3),
+            Kernel(5, [1.2, 2.0, 3.2, 2.0, 0.5], 2, 3, 2),
+            Kernel(3, [1.0, 2.0, 7.0], 0.7, 2, 2),
+        ],
+    ],
+)
+def test_transform_against_aeon_fixed_kernels(
+    x: np.ndarray, kernels: list[Kernel]
+) -> None:
+    a = apply_kernels(x=x, kernels=kernels)
+    b = apply_kernels_aeon(x=x, kernels=kernels)
+    np.testing.assert_allclose(a, b, rtol=1e-6, atol=1e-6)
