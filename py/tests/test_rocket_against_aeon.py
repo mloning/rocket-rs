@@ -10,6 +10,8 @@ from pytest_benchmark.fixture import BenchmarkFixture
 from rocket_rs import Kernel, apply_kernels, generate_kernels
 from rocket_rs._utils import _check_array
 
+SEED = 42
+
 
 @pytest.fixture
 def x() -> np.ndarray:
@@ -27,6 +29,10 @@ _KernelParams = tuple[
 
 
 def _convert_kernels_aeon(kernels: list[Kernel]) -> _KernelParams:
+    # in aeon kernels are not represented as a list of some struct, but instead as
+    # list of arrays, one for each kernel parameter; we here convert between the
+    # representations, to be able to compare the results of kernel computation for
+    # the same input kernels
     n_kernels = len(kernels)
     n_weights = sum([kernel.len for kernel in kernels])
 
@@ -73,10 +79,10 @@ def apply_kernels_aeon(
 @pytest.mark.parametrize(
     "generate_kernels_func",
     [
-        partial(generate_kernels, n_kernels=1),
-        partial(generate_kernels, n_kernels=3),
-        partial(generate_kernels, n_kernels=13),
-        partial(generate_kernels, n_kernels=35),
+        partial(generate_kernels, n_kernels=1, seed=SEED),
+        partial(generate_kernels, n_kernels=3, seed=SEED),
+        partial(generate_kernels, n_kernels=13, seed=SEED),
+        partial(generate_kernels, n_kernels=35, seed=SEED),
     ],
 )
 def test_apply_kernels_against_aeon_random_kernels(
@@ -126,6 +132,6 @@ def test_apply_kernels_benchmark_aeon(
     x: np.ndarray, benchmark: BenchmarkFixture
 ) -> None:
     n_timepoints = x.shape[-1]
-    kernels = generate_kernels(n_kernels=1_000, n_timepoints=n_timepoints)
+    kernels = generate_kernels(n_kernels=1_000, n_timepoints=n_timepoints, seed=SEED)
     kernels_aeon = _convert_kernels_aeon(kernels=kernels)
     benchmark(_apply_kernels_aeon, X=x, kernels=kernels_aeon)

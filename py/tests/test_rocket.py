@@ -3,7 +3,7 @@ import time
 import numpy as np
 import pytest
 from aeon.datasets import load_unit_test
-from rocket_rs import Kernel, apply_kernels, transform
+from rocket_rs import Kernel, apply_kernels, generate_kernels, transform
 from rocket_rs._utils import _check_array
 
 
@@ -67,3 +67,12 @@ def test_apply_kernels_return_type(x: np.ndarray, kernels: list[Kernel]) -> None
 
     # last dimension is number of features
     assert z.shape[:2] == (x.shape[0], n_kernels)
+
+
+def test_generate_kernels() -> None:
+    n_timepoints = 1_000
+    n_kernels = 100
+    kernels = generate_kernels(n_timepoints=n_timepoints, n_kernels=n_kernels, seed=0)
+
+    assert isinstance(kernels, list)
+    assert len(kernels) == n_kernels

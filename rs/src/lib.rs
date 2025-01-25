@@ -6,6 +6,8 @@ use ndarray_rand::RandomExt;
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArray3};
 use pyo3::prelude::*;
 use rand::prelude::*;
+use rand::Rng;
+use rand_chacha::ChaCha8Rng;
 use rayon::prelude::*;
 
 type Weights = Vec<f32>;
@@ -42,8 +44,9 @@ fn transform_py<'py>(
     py: Python<'py>,
     x: PyReadonlyArray3<'py, f32>,
     n_kernels: usize,
+    seed: u64,
 ) -> &'py PyArray3<f32> {
-    let z = transform(x.as_array(), n_kernels);
+    let z = transform(x.as_array(), n_kernels, seed);
     z.into_pyarray(py)
 }
 
@@ -60,8 +63,13 @@ fn apply_kernels_py<'py>(
 
 #[pyfunction]
 #[pyo3(name = "generate_kernels")]
-fn generate_kernels_py<'py>(_py: Python<'py>, n_timepoints: usize, n_kernels: usize) -> Kernels {
-    generate_kernels(n_timepoints, n_kernels)
+fn generate_kernels_py<'py>(
+    _py: Python<'py>,
+    n_timepoints: usize,
+    n_kernels: usize,
+    seed: u64,
+) -> Kernels {
+    generate_kernels(n_timepoints, n_kernels, seed)
 }
 /// ROCKET implemented in Rust
 #[pymodule]
@@ -75,39 +83,36 @@ fn _rocket_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 /// Rust implementation of ROCKET transform
-fn transform(x: ArrayView3<f32>, n_kernels: usize) -> Array3<f32> {
+fn transform(x: ArrayView3<f32>, n_kernels: usize, seed: u64) -> Array3<f32> {
     // println!("x: {:?}", x.shape());
     // println!("n_kernels: {:?}", n_kernels);
     let n_timepoints = x.shape()[2];
-    let kernels = generate_kernels(n_timepoints, n_kernels);
+    let kernels = generate_kernels(n_timepoints, n_kernels, seed);
     apply_kernels(x, &kernels)
 }
 
-fn generate_random_kernel(
+fn generate_kernel(
     candidate_lengths: [usize; 3],
     weight_distribution: Normal<f32>,
     bias_distribution: Uniform<f32>,
     n_timepoints: usize,
+    rng: &mut impl Rng,
 ) -> Kernel {
-    // TODO refactor to pass in rng to all random functions so that other, seeded rngs can be used
-    // for reproducibility
-    let mut rng = thread_rng();
-
     // length
-    let len = *candidate_lengths.choose(&mut rng).expect("empty lenghts");
+    let len = *candidate_lengths.choose(rng).expect("empty lenghts");
 
     // dilation
     let high = (((n_timepoints - 1) / (len - 1)) as f32).log2();
     let dilation_dist = Uniform::new(0., high);
-    let dilation = 2 * dilation_dist.sample(&mut rng) as usize;
+    let dilation = 2 * dilation_dist.sample(rng) as usize;
 
     // weights
-    let mut weights = Array1::random_using(len, weight_distribution, &mut rng);
+    let mut weights = Array1::random_using(len, weight_distribution, rng);
     weights -= weights.mean().expect("no mean");
     let weights = weights.to_vec();
 
     // bias
-    let bias = bias_distribution.sample(&mut rng);
+    let bias = bias_distribution.sample(rng);
 
     // padding
     let padding = match rng.gen() {
@@ -125,22 +130,26 @@ fn generate_random_kernel(
     }
 }
 
-fn generate_kernels(n_timepoints: usize, n_kernels: usize) -> Kernels {
+fn generate_kernels(n_timepoints: usize, n_kernels: usize, seed: u64) -> Kernels {
     let candidate_lengths: [usize; 3] = [7, 9, 11];
 
     let weigth_distribution = Normal::new(0., 1.).expect("failed normal distribution");
     let bias_distribution = Uniform::new(-1., 1.);
-
     let mut kernels = Vec::with_capacity(n_kernels);
+
     // TODO can we not sample first all params outside of the parallel loop?
     (0..n_kernels)
         .into_par_iter()
-        .map(|_| {
-            generate_random_kernel(
+        .map(|i| {
+            // for using rngs in a parallel setting, see https://rust-random.github.io/book/guide-parallel.html
+            let mut rng = ChaCha8Rng::seed_from_u64(seed);
+            rng.set_stream(i as u64);
+            generate_kernel(
                 candidate_lengths,
                 weigth_distribution,
                 bias_distribution,
                 n_timepoints,
+                &mut rng,
             )
         })
         .collect_into_vec(&mut kernels);
@@ -193,7 +202,7 @@ fn apply_kernels(x: ArrayView3<f32>, kernels: &Kernels) -> Array3<f32> {
     let n_features = 2; // depends on `apply_kernel` function
     let mut z = Array3::zeros((n_samples, n_kernels, n_features));
 
-    // we parallelize kernel computation using multi-threading; this create threads for each time
+    // we parallelize kernel computation using multi-threading; this creates threads for each time
     // series (or row) in the array, and iterates over all kernels inside each thread; this tries
     // to balance thread management overhead with parallel execution; this will work well for larger
     // numbers of longer time series, relative to the number of kernels, but less so for smaller
