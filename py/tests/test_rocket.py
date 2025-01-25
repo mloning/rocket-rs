@@ -69,10 +69,16 @@ def test_apply_kernels_return_type(x: np.ndarray, kernels: list[Kernel]) -> None
     assert z.shape[:2] == (x.shape[0], n_kernels)
 
 
-def test_generate_kernels() -> None:
-    n_timepoints = 1_000
-    n_kernels = 100
-    kernels = generate_kernels(n_timepoints=n_timepoints, n_kernels=n_kernels, seed=0)
+@pytest.mark.parametrize("n_timepoints", [50, 60])
+@pytest.mark.parametrize("n_kernels", [3, 10, 13])
+def test_generate_kernels_return_type(n_timepoints: int, n_kernels: int) -> None:
+    kernels = generate_kernels(n_timepoints=n_timepoints, n_kernels=n_kernels)
 
     assert isinstance(kernels, list)
     assert len(kernels) == n_kernels
+
+
+def test_generate_kernels_optional_seed_arg() -> None:
+    generate_kernels(n_timepoints=19, n_kernels=1)  # default should be None
+    generate_kernels(n_timepoints=21, n_kernels=2, seed=None)
+    generate_kernels(n_timepoints=23, n_kernels=3, seed=42)

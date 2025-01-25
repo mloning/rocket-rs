@@ -38,13 +38,15 @@ impl Kernel {
 
 type Kernels = Vec<Kernel>;
 
+type RngSeed = Option<u64>;
+
 #[pyfunction]
 #[pyo3(name = "transform")]
 fn transform_py<'py>(
     py: Python<'py>,
     x: PyReadonlyArray3<'py, f32>,
     n_kernels: usize,
-    seed: u64,
+    seed: RngSeed,
 ) -> &'py PyArray3<f32> {
     let z = transform(x.as_array(), n_kernels, seed);
     z.into_pyarray(py)
@@ -63,11 +65,12 @@ fn apply_kernels_py<'py>(
 
 #[pyfunction]
 #[pyo3(name = "generate_kernels")]
+#[pyo3(signature = (n_timepoints, n_kernels, seed=None))] // make arg optional with default being None
 fn generate_kernels_py<'py>(
     _py: Python<'py>,
     n_timepoints: usize,
     n_kernels: usize,
-    seed: u64,
+    seed: RngSeed,
 ) -> Kernels {
     generate_kernels(n_timepoints, n_kernels, seed)
 }
@@ -83,7 +86,7 @@ fn _rocket_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 /// Rust implementation of ROCKET transform
-fn transform(x: ArrayView3<f32>, n_kernels: usize, seed: u64) -> Array3<f32> {
+fn transform(x: ArrayView3<f32>, n_kernels: usize, seed: RngSeed) -> Array3<f32> {
     // println!("x: {:?}", x.shape());
     // println!("n_kernels: {:?}", n_kernels);
     let n_timepoints = x.shape()[2];
@@ -102,6 +105,8 @@ fn generate_kernel(
     let len = *candidate_lengths.choose(rng).expect("empty lenghts");
 
     // dilation
+    // TODO add check that n_timepoints is at least twice as large as the max candidate length for
+    // the dilation parameter generation to work as expected
     let high = (((n_timepoints - 1) / (len - 1)) as f32).log2();
     let dilation_dist = Uniform::new(0., high);
     let dilation = 2 * dilation_dist.sample(rng) as usize;
@@ -130,9 +135,19 @@ fn generate_kernel(
     }
 }
 
-fn generate_kernels(n_timepoints: usize, n_kernels: usize, seed: u64) -> Kernels {
-    let candidate_lengths: [usize; 3] = [7, 9, 11];
+fn init_thread_rng(seed: RngSeed, thread: u64) -> ChaCha8Rng {
+    // we ensure deterministic results in a multi-threaded context; for more details, see
+    // https://rust-random.github.io/book/guide-parallel.html
+    let mut rng = match seed {
+        Some(seed) => ChaCha8Rng::seed_from_u64(seed),
+        None => ChaCha8Rng::from_entropy(),
+    };
+    rng.set_stream(thread);
+    rng
+}
 
+fn generate_kernels(n_timepoints: usize, n_kernels: usize, seed: RngSeed) -> Kernels {
+    let candidate_lengths: [usize; 3] = [7, 9, 11];
     let weigth_distribution = Normal::new(0., 1.).expect("failed normal distribution");
     let bias_distribution = Uniform::new(-1., 1.);
     let mut kernels = Vec::with_capacity(n_kernels);
@@ -141,9 +156,7 @@ fn generate_kernels(n_timepoints: usize, n_kernels: usize, seed: u64) -> Kernels
     (0..n_kernels)
         .into_par_iter()
         .map(|i| {
-            // for using rngs in a parallel setting, see https://rust-random.github.io/book/guide-parallel.html
-            let mut rng = ChaCha8Rng::seed_from_u64(seed);
-            rng.set_stream(i as u64);
+            let mut rng = init_thread_rng(seed, i as u64);
             generate_kernel(
                 candidate_lengths,
                 weigth_distribution,

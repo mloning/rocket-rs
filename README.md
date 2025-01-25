@@ -46,7 +46,8 @@ python -m maturin_import_hook site install --args="--release"
 
 - [x] separate kernel parameter generation from computation
 - [x] compare and test against Python implementation in [aeon]
-- [ ] refactor to pass random generator to functions
+- [x] refactor to pass random generator to functions
+- [ ] use debugger
 - [ ] benchmark & improve
 
 ### Notes
